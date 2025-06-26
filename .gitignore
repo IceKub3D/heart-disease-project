@@ -1,0 +1,5 @@
+data/heart_disease.csv
+models/model.joblib
+models/scaler.joblib.venv/
+.venv/
+.dvc/cache/
