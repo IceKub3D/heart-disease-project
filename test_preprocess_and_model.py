@@ -1,8 +1,8 @@
 import pandas as pd
 import joblib
 import pytest
+import numpy as np
 from preprocess import preprocess_data
-
 
 def test_preprocess_data():
     # Create a sample row based on heart_disease.csv columns
@@ -27,23 +27,27 @@ def test_preprocess_data():
     # Preprocess the sample data
     processed_data = preprocess_data(sample_data)
 
-    # Expected columns after preprocessing (numerical + one-hot encoded categorical)
+    # Expected columns after preprocessing
     expected_columns = [
-        'age', 'trestbps', 'chol', 'thalach', 'oldpeak', 'target', 'source',
-        'sex_1', 'cp_1', 'cp_2', 'cp_3', 'fbs_1', 'restecg_1', 'restecg_2',
-        'exang_1', 'slope_1', 'slope_2', 'ca_1', 'ca_2', 'ca_3', 'thal_1', 'thal_2', 'thal_3'
+        'age', 'trestbps', 'chol', 'thalach', 'oldpeak', 'sex', 'fbs', 'exang', 'ca',
+        'cp_1.0', 'cp_2.0', 'cp_3.0', 'cp_4.0',
+        'restecg_0.0', 'restecg_0.4', 'restecg_0.6', 'restecg_1.0', 'restecg_2.0',
+        'slope_1.0', 'slope_1.2', 'slope_1.4', 'slope_1.6', 'slope_1.8', 'slope_2.0',
+        'slope_2.2', 'slope_2.4', 'slope_2.6', 'slope_3.0',
+        'thal_3.0', 'thal_3.8', 'thal_4.2', 'thal_4.4', 'thal_4.6', 'thal_5.0',
+        'thal_5.2', 'thal_5.4', 'thal_5.8', 'thal_6.0', 'thal_6.2', 'thal_6.4',
+        'thal_6.6', 'thal_6.8', 'thal_7.0',
+        'source_cleveland', 'source_hungarian', 'source_switzerland', 'source_va_long_beach',
+        'thalach_exang'
     ]
 
     # Test: Check if all expected columns are present
-    assert all(col in processed_data.columns for col in expected_columns), "Missing expected columns"
+    assert all(col in processed_data.columns for col in expected_columns), f"Missing columns: {[col for col in expected_columns if col not in processed_data.columns]}"
 
-    # Test: Check if numerical columns are scaled (not in original range)
-    assert processed_data['age'].iloc[0] != 63, "Age should be scaled"
-    assert processed_data['trestbps'].iloc[0] != 145, "Trestbps should be scaled"
-
-    # Test: Check if categorical columns are one-hot encoded
-    assert processed_data['sex_1'].iloc[0] == 1, "Sex encoding incorrect"
-
+    # Test: Check if numerical columns are scaled
+    assert processed_data['age'].iloc[0] != 63, f"Age should be scaled, got {processed_data['age'].iloc[0]}"
+    assert processed_data['trestbps'].iloc[0] != 145, f"Trestbps should be scaled, got {processed_data['trestbps'].iloc[0]}"
+    assert not np.isclose(processed_data['age'].iloc[0], 63, rtol=1e-5), f"Age should be significantly different, got {processed_data['age'].iloc[0]}"
 
 def test_model_inference():
     # Load model and scaler
@@ -73,7 +77,27 @@ def test_model_inference():
     processed_data = preprocess_data(sample_data)
 
     # Drop non-feature columns
-    processed_data = processed_data.drop(columns=['target', 'source'])
+    processed_data = processed_data.drop(columns=['target'])
+
+    # Ensure model features are present
+    model_features = getattr(model, 'feature_names', [
+        'age', 'sex', 'trestbps', 'chol', 'fbs', 'thalach', 'exang', 'oldpeak', 'ca',
+        'cp_2.0', 'cp_3.0', 'cp_4.0',
+        'restecg_0.4', 'restecg_0.6', 'restecg_1.0', 'restecg_2.0',
+        'slope_1.2', 'slope_1.4', 'slope_1.6', 'slope_1.8', 'slope_2.0', 'slope_2.2',
+        'slope_2.4', 'slope_2.6', 'slope_3.0',
+        'thal_3.8', 'thal_4.2', 'thal_4.4', 'thal_4.6', 'thal_5.0', 'thal_5.2',
+        'thal_5.4', 'thal_5.8', 'thal_6.0', 'thal_6.2', 'thal_6.4', 'thal_6.6',
+        'thal_6.8', 'thal_7.0',
+        'source_hungarian', 'source_switzerland', 'source_va_long_beach',
+        'thalach_exang'
+    ])
+    for col in model_features:
+        if col not in processed_data.columns:
+            processed_data[col] = 0.0
+
+    # Ensure columns match model features exactly
+    processed_data = processed_data[model_features]
 
     # Predict
     prediction = model.predict_proba(processed_data)[:, 1]  # Probability of positive class

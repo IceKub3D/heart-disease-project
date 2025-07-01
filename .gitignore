@@ -1,5 +1,1 @@
-data/heart_disease.csv
-models/model.joblib
-models/scaler.joblib
-.venv/
-.dvc/cache/
+.DS_Store .idea/ pycache/ *.pyc .venv/ *.log
